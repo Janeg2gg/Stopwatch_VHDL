@@ -82,16 +82,25 @@ begin
 
     process (counter)
     variable count_sec : integer;
+    variable seconds : integer range 0 to 59 := 0;
+    variable mili_sec : integer range 0 to 59 := 0;
     begin
-        count_sec := to_integer(counter / (freq / 1000000));
-        led7_seg_o <= std_logic_vector(to_unsigned(count_sec mod 10000, 7));
+        count_sec := to_integer(counter / (freq / 1000));
+        mili_sec := count_sec;
+        seconds := count_sec * 100;
+        led7_seg_o <= std_logic_vector(to_unsigned(mili_sec mod 10, 7));
         led7_an_o <= "1110";
-        led7_seg_o <= std_logic_vector(to_unsigned((count_sec / 10) mod 1000, 7));
+        led7_seg_o <= std_logic_vector(to_unsigned((mili_sec / 10) mod 10, 7));
         led7_an_o <= "1101";
-        led7_seg_o <= std_logic_vector(to_unsigned((count_sec / 100) mod 100, 7));
+        led7_seg_o <= std_logic_vector(to_unsigned(seconds mod 10 , 7));
         led7_an_o <= "1011";
-        led7_seg_o <= std_logic_vector(to_unsigned((count_sec / 1000) mod 10, 7));
+        led7_seg_o <= std_logic_vector(to_unsigned((seconds / 10) mod 10, 7));
         led7_an_o <= "0111";
+        
+        if (seconds = 59) and (mili_sec = 59) then
+            led7_seg_o <= "00000010";
+            led7_an_o <= "0000";
+        end if;
     end process;
 
 
