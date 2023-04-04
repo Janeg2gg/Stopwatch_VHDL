@@ -46,6 +46,8 @@ architecture Behavioral of Stopwatch_top is
     signal start   : boolean := false;
     signal stopped : boolean := false;
     signal prev_ss : std_logic := '0';
+    signal temp : std_logic_vector(6 downto 0) := "0000000";
+    signal state : std_logic_vector(6 downto 0) := "0000000";
 
     constant freq : integer := 100000000; -- clock frequency in Hz
 
@@ -67,37 +69,102 @@ begin
     process (start_stop_button_i)
     begin
         if (start_stop_button_i = '1' and prev_ss = '0') then
+            --presing button first time
             if (not start) then
                 start   <= true;
                 stopped <= false;
+            --pressing button  second time
             elsif (start and not stopped) then
                 stopped <= true;
+            --pressing button third time
             elsif (start and stopped) then
                 start   <= false;
                 stopped <= false;
+                counter <= (others => '0');
             end if;
         end if;
         prev_ss <= start_stop_button_i;
     end process;
 
     process (counter)
-    variable count_sec : integer;
+    variable count_ms : integer;
     variable seconds : integer range 0 to 59 := 0;
-    variable mili_sec : integer range 0 to 59 := 0;
+    variable mili_sec : integer range 0 to 99 := 0;
     begin
-        count_sec := to_integer(counter / (freq / 1000));
-        mili_sec := count_sec;
-        seconds := count_sec * 100;
-        led7_seg_o <= std_logic_vector(to_unsigned(mili_sec mod 10, 7));
-        led7_an_o <= "1110";
-        led7_seg_o <= std_logic_vector(to_unsigned((mili_sec / 10) mod 10, 7));
-        led7_an_o <= "1101";
-        led7_seg_o <= std_logic_vector(to_unsigned(seconds mod 10 , 7));
+        --Initialization of "."
+        led7_seg_o <= "00000001";
         led7_an_o <= "1011";
-        led7_seg_o <= std_logic_vector(to_unsigned((seconds / 10) mod 10, 7));
+        
+        --couter from frequency
+        count_ms := to_integer(counter / (freq / 1000));
+        mili_sec := count_ms;
+        seconds := count_ms * 100;
+        
+        state <= std_logic_vector(to_unsigned(mili_sec mod 10, 7));
+        with state select
+        temp <= "0000001" when "0000000",  -- 0
+            "1111001" when "0000001",  --1
+            "0010010" when "0000010",
+            "0000110" when "0000011",
+            "1001100" when "0000100",
+            "0100100" when "0000101",
+            "0100000" when "0000110",
+            "0001111" when "0000111",
+            "0000000" when "0001000",
+            "0000100" when "0001001",  --9
+            "1111111" when others;     
+        led7_seg_o(7 downto 1) <= temp;
+        led7_an_o <= "1110";
+        
+        state <= std_logic_vector(to_unsigned((mili_sec / 10) mod 10, 7));
+        with state select
+        temp <= "0000001" when "0000000",  -- 0
+            "1111001" when "0000001",  --1
+            "0010010" when "0000010",
+            "0000110" when "0000011",
+            "1001100" when "0000100",
+            "0100100" when "0000101",
+            "0100000" when "0000110",
+            "0001111" when "0000111",
+            "0000000" when "0001000",
+            "0000100" when "0001001",  --9
+            "1111111" when others; 
+        led7_seg_o(7 downto 1) <= temp;
+        led7_an_o <= "1101";
+        
+        state <= std_logic_vector(to_unsigned(seconds mod 10 , 7));
+        with state select
+        temp <= "0000001" when "0000000",  -- 0
+            "1111001" when "0000001",  --1
+            "0010010" when "0000010",
+            "0000110" when "0000011",
+            "1001100" when "0000100",
+            "0100100" when "0000101",
+            "0100000" when "0000110",
+            "0001111" when "0000111",
+            "0000000" when "0001000",
+            "0000100" when "0001001",  --9
+            "1111111" when others; 
+        led7_seg_o(7 downto 1) <= temp;
+        led7_an_o <= "1011";
+        
+        state <= std_logic_vector(to_unsigned((seconds / 10) mod 10 , 7));
+        with state select
+        temp <= "0000001" when "0000000",  -- 0
+            "1111001" when "0000001",  --1
+            "0010010" when "0000010",
+            "0000110" when "0000011",
+            "1001100" when "0000100",
+            "0100100" when "0000101",
+            "0100000" when "0000110",
+            "0001111" when "0000111",
+            "0000000" when "0001000",
+            "0000100" when "0001001",  --9
+            "1111111" when others; 
+        led7_seg_o(7 downto 1) <= temp;
         led7_an_o <= "0111";
         
-        if (seconds = 59) and (mili_sec = 59) then
+        if (seconds = 59) and (mili_sec = 99) then
             led7_seg_o <= "00000010";
             led7_an_o <= "0000";
         end if;
