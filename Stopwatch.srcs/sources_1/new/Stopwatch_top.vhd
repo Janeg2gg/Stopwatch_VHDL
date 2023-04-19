@@ -23,36 +23,48 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx leaf cells in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
-
 entity Stopwatch_top is
     Port ( clk_i : in STD_LOGIC;
            rst_i : in STD_LOGIC;
            start_stop_button_i : in STD_LOGIC;
-           led7_an_o : out STD_LOGIC_VECTOR (3 downto 0);
-           led7_seg_o : out STD_LOGIC_VECTOR (7 downto 0));
+           led7_an_o : inout STD_LOGIC_VECTOR (3 downto 0);
+           led7_seg_o : inout STD_LOGIC_VECTOR (7 downto 0));
 end Stopwatch_top;
 
 architecture Behavioral of Stopwatch_top is
 
-    signal counter : unsigned(27 downto 0) := (others => '0');
+component encoder is
+    Port ( digit_i : in  STD_LOGIC_VECTOR (3 downto 0);
+           seg_o : out  STD_LOGIC_VECTOR (6 downto 0));
+end component;
+
+component  Display_stopwatch is
+    Port ( clk_i : in  STD_LOGIC;
+           rst_i : in  STD_LOGIC;
+           digit_i : in  STD_LOGIC_VECTOR (31 downto 0);
+           led7_seg_o : out  STD_LOGIC_VECTOR (7 downto 0);
+           led7_an_o : out  STD_LOGIC_VECTOR (3 downto 0));
+end component;
+
+    signal counter : unsigned(23 downto 0) := (others => '0');
     signal start   : boolean := false;
     signal stopped : boolean := false;
     signal prev_ss : std_logic := '0';
-    signal temp : std_logic_vector(6 downto 0) := "0000000";
-    signal state : std_logic_vector(6 downto 0) := "0000000";
+    signal digits : STD_LOGIC_VECTOR (31 downto 0);
+    signal d1,d2,d3,d4 : STD_LOGIC_VECTOR (3 downto 0);
 
     constant freq : integer := 100000000; -- clock frequency in Hz
 
 begin
 
+dpm: Display_stopwatch port map(
+    clk_i => clk_i,
+    rst_i => rst_i,
+    digit_i => digits,
+    led7_an_o => led7_an_o,
+    led7_seg_o => led7_seg_o
+    );
+	
  process (clk_i, rst_i)
     begin
         if (rst_i = '1') then
@@ -69,18 +81,14 @@ begin
     process (start_stop_button_i)
     begin
         if (start_stop_button_i = '1' and prev_ss = '0') then
-            --presing button first time
             if (not start) then
                 start   <= true;
                 stopped <= false;
-            --pressing button  second time
             elsif (start and not stopped) then
                 stopped <= true;
-            --pressing button third time
             elsif (start and stopped) then
                 start   <= false;
                 stopped <= false;
-                counter <= (others => '0');
             end if;
         end if;
         prev_ss <= start_stop_button_i;
@@ -88,87 +96,40 @@ begin
 
     process (counter)
     variable count_ms : integer;
-    variable seconds : integer range 0 to 59 := 0;
-    variable mili_sec : integer range 0 to 99 := 0;
+    variable count_s  : integer;
     begin
-        --Initialization of "."
-        led7_seg_o <= "00000001";
-        led7_an_o <= "1011";
-        
-        --couter from frequency
         count_ms := to_integer(counter / (freq / 1000));
-        mili_sec := count_ms;
-        seconds := count_ms * 100;
-        
-        state <= std_logic_vector(to_unsigned(mili_sec mod 10, 7));
-        with state select
-        temp <= "0000001" when "0000000",  -- 0
-            "1111001" when "0000001",  --1
-            "0010010" when "0000010",
-            "0000110" when "0000011",
-            "1001100" when "0000100",
-            "0100100" when "0000101",
-            "0100000" when "0000110",
-            "0001111" when "0000111",
-            "0000000" when "0001000",
-            "0000100" when "0001001",  --9
-            "1111111" when others;     
-        led7_seg_o(7 downto 1) <= temp;
-        led7_an_o <= "1110";
-        
-        state <= std_logic_vector(to_unsigned((mili_sec / 10) mod 10, 7));
-        with state select
-        temp <= "0000001" when "0000000",  -- 0
-            "1111001" when "0000001",  --1
-            "0010010" when "0000010",
-            "0000110" when "0000011",
-            "1001100" when "0000100",
-            "0100100" when "0000101",
-            "0100000" when "0000110",
-            "0001111" when "0000111",
-            "0000000" when "0001000",
-            "0000100" when "0001001",  --9
-            "1111111" when others; 
-        led7_seg_o(7 downto 1) <= temp;
-        led7_an_o <= "1101";
-        
-        state <= std_logic_vector(to_unsigned(seconds mod 10 , 7));
-        with state select
-        temp <= "0000001" when "0000000",  -- 0
-            "1111001" when "0000001",  --1
-            "0010010" when "0000010",
-            "0000110" when "0000011",
-            "1001100" when "0000100",
-            "0100100" when "0000101",
-            "0100000" when "0000110",
-            "0001111" when "0000111",
-            "0000000" when "0001000",
-            "0000100" when "0001001",  --9
-            "1111111" when others; 
-        led7_seg_o(7 downto 1) <= temp;
-        led7_an_o <= "1011";
-        
-        state <= std_logic_vector(to_unsigned((seconds / 10) mod 10 , 7));
-        with state select
-        temp <= "0000001" when "0000000",  -- 0
-            "1111001" when "0000001",  --1
-            "0010010" when "0000010",
-            "0000110" when "0000011",
-            "1001100" when "0000100",
-            "0100100" when "0000101",
-            "0100000" when "0000110",
-            "0001111" when "0000111",
-            "0000000" when "0001000",
-            "0000100" when "0001001",  --9
-            "1111111" when others; 
-        led7_seg_o(7 downto 1) <= temp;
-        led7_an_o <= "0111";
-        
-        if (seconds = 59) and (mili_sec = 99) then
-            led7_seg_o <= "00000010";
-            led7_an_o <= "0000";
-        end if;
+        count_s  := count_ms / 1000;
+        count_ms := count_ms mod 1000;
+        digits(7 downto 1) <= std_logic_vector(to_unsigned(count_ms mod 10, 7));
+        d1 <= "1110";
+        digits(15 downto 9) <= std_logic_vector(to_unsigned((count_ms / 10) mod 10, 7));
+        d2 <= "1101";
+        digits(23 downto 17) <= std_logic_vector(to_unsigned(count_s mod 10, 7));
+        d3 <= "1011";
+        digits(31 downto 25) <= std_logic_vector(to_unsigned((count_s / 10) mod 6, 7));
+        d4 <= "0111";
     end process;
 
+digits(0)<='1'; digits(8)<='1'; digits(16)<='0'; digits(24)<='1';
 
+    d1m: encoder port map(d1,digits(7 downto 1));
+	d2m: encoder port map(d2,digits(15 downto 9));
+	d3m: encoder port map(d3,digits(23 downto 17));
+	d4m: encoder port map(d4,digits(31 downto 25));
+	
 end Behavioral;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
